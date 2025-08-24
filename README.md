@@ -8,7 +8,7 @@ This extension allows users to either retrieve their Discord token or log in usi
 
 ## Screenshots
 <div style="display: flex; justify-content: space-between;">
-  <img src="https://i.ibb.co/qFCXsbYb/Untitled.png" alt="Extension Screenshot" width="45%">
+  <img src="https://i.ibb.co/qFCXsbYb/Untitled.png" alt="Extension Screenshot" width="75%">
 </div>
 
 ## How to Load the Extension
