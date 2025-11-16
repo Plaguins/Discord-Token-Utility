@@ -218,6 +218,36 @@ function renderAccounts(accounts) {
             loginWithToken(acct.token);
         });
 
+        const editBtn = document.createElement('button');
+        editBtn.textContent = 'Edit';
+        editBtn.style.marginLeft = '6px';
+        editBtn.addEventListener('click', () => {
+            const newName = prompt('Enter a new name for this account:', acct.name || '');
+            if (newName !== null) {
+                chrome.storage.local.get(['accounts'], (result) => {
+                    const updated = (result.accounts || []).map(a => a.id === acct.id ? { ...a, name: newName } : a);
+                    chrome.storage.local.set({ accounts: updated }, () => {
+                        loadAccounts();
+                        showNotification('Account name updated', 'success');
+                    });
+                });
+            }
+        });
+
+        const autoCheckbox = document.createElement('input');
+        autoCheckbox.type = 'checkbox';
+        autoCheckbox.checked = !!acct.autoLogin;
+        autoCheckbox.title = 'Auto-login this account when a Discord tab is available';
+        autoCheckbox.style.marginLeft = '8px';
+        autoCheckbox.addEventListener('change', () => {
+            chrome.storage.local.get(['accounts'], (result) => {
+                const updated = (result.accounts || []).map(a => a.id === acct.id ? { ...a, autoLogin: autoCheckbox.checked } : a);
+                chrome.storage.local.set({ accounts: updated }, () => {
+                    showNotification('Auto-login setting updated', 'success');
+                });
+            });
+        });
+
         const copyBtn = document.createElement('button');
         copyBtn.textContent = 'Copy';
         copyBtn.style.marginLeft = '6px';
@@ -244,8 +274,10 @@ function renderAccounts(accounts) {
 
         li.appendChild(nameSpan);
         li.appendChild(loginBtn);
+        li.appendChild(editBtn);
         li.appendChild(copyBtn);
         li.appendChild(delBtn);
+        li.appendChild(autoCheckbox);
 
         list.appendChild(li);
     });
@@ -260,7 +292,7 @@ document.getElementById('save-account-btn').addEventListener('click', () => {
     }
     chrome.storage.local.get(['accounts'], (result) => {
         const accounts = result.accounts || [];
-        const newAccount = { id: Date.now(), name: name, token: token };
+        const newAccount = { id: Date.now(), name: name, token: token, autoLogin: false };
         accounts.push(newAccount);
         chrome.storage.local.set({ accounts: accounts }, () => {
             loadAccounts();
@@ -320,6 +352,61 @@ async function loginWithToken(token) {
 
 // initialize accounts list on popup open
 loadAccounts();
+
+// After loading accounts, attempt auto-login for the first account with autoLogin=true
+function tryAutoLogin() {
+    chrome.storage.local.get(['accounts'], (result) => {
+        const accounts = result.accounts || [];
+        const auto = accounts.find(a => a.autoLogin);
+        if (!auto) return;
+        // find an open discord tab
+        chrome.tabs.query({}, (tabs) => {
+            const discordTab = tabs.find(t => t.url && t.url.includes('discord.com'));
+            if (discordTab) {
+                loginWithToken(auto.token);
+            }
+        });
+    });
+}
+
+tryAutoLogin();
+
+// Delete Discord cookies and clear localStorage token on discord tabs
+document.getElementById('delete-cookies-btn').addEventListener('click', () => {
+    // get all cookies for discord domains
+    chrome.cookies.getAll({ domain: 'discord.com' }, (cookies) => {
+        if (!cookies || cookies.length === 0) {
+            showNotification('No Discord cookies found', 'error');
+            return;
+        }
+        let removed = 0;
+        cookies.forEach(cookie => {
+            const domain = cookie.domain.charAt(0) === '.' ? cookie.domain.substring(1) : cookie.domain;
+            const protocol = cookie.secure ? 'https://' : 'http://';
+            const url = protocol + domain + cookie.path;
+            chrome.cookies.remove({ url: url, name: cookie.name }, () => {
+                removed++;
+                if (removed === cookies.length) {
+                    // also clear localStorage token on any open discord tabs
+                    chrome.tabs.query({}, (tabs) => {
+                        const discordTabs = tabs.filter(t => t.url && t.url.includes('discord.com'));
+                        discordTabs.forEach(t => {
+                            chrome.scripting.executeScript({
+                                target: { tabId: t.id },
+                                func: () => {
+                                    try { localStorage.removeItem('token'); } catch(e){}
+                                    try { sessionStorage.clear(); } catch(e){}
+                                    try { location.reload(); } catch(e){}
+                                }
+                            });
+                        });
+                    });
+                    showNotification('Discord cookies removed', 'success');
+                }
+            });
+        });
+    });
+});
 
 document.getElementById('get-token-tab').addEventListener('click', () => {
     document.getElementById('get-token-content').classList.add('active');
