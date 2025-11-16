@@ -132,18 +132,29 @@
   <div class="tab-buttons">
     <div class="tab-button active" id="login-tab">Login With Token</div>
     <div class="tab-button" id="get-token-tab">Get Token</div>
+    <div class="tab-button" id="accounts-tab">Saved Accounts</div>
   </div>
 
   <div class="content-wrapper">
     <div class="tab-content active" id="login-content">
       <input type="text" id="login-token" placeholder="Paste Your Token Here">
       <button id="login-btn">Click To Login</button>
+      <input type="text" id="account-name" placeholder="Account name (optional)">
+      <button id="save-account-btn">Save Account</button>
     </div>
 
     <div class="tab-content" id="get-token-content">
       <button id="get-token-btn">Retrieve Your Token</button>
       <input type="text" id="token" readonly placeholder="Your Token Will Appear Here">
       <button id="copy-btn" disabled>Click To Copy</button>
+    </div>
+    
+    <div class="tab-content" id="accounts-content">
+      <div style="text-align:left; margin-bottom:8px;">
+        <strong>Saved Accounts</strong>
+      </div>
+      <div id="accounts-empty" style="color:#b9bbbe;">No saved accounts.</div>
+      <ul id="accounts-list" style="list-style:none; padding:0; margin:0;"></ul>
     </div>
   </div>
 

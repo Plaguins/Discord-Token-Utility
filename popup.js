@@ -181,16 +181,171 @@ document.getElementById('login-btn').addEventListener('click', async () => {
     }
 });
 
+// --- Account management: save / list / use / delete ---
+function loadAccounts() {
+    chrome.storage.local.get(['accounts'], (result) => {
+        const accounts = result.accounts || [];
+        renderAccounts(accounts);
+    });
+}
+
+function renderAccounts(accounts) {
+    const list = document.getElementById('accounts-list');
+    const empty = document.getElementById('accounts-empty');
+    list.innerHTML = '';
+    if (!accounts || accounts.length === 0) {
+        empty.style.display = 'block';
+        return;
+    }
+    empty.style.display = 'none';
+
+    accounts.forEach((acct) => {
+        const li = document.createElement('li');
+        li.style.marginBottom = '8px';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = acct.name || '(no name)';
+        nameSpan.style.color = '#fff';
+        nameSpan.style.display = 'inline-block';
+        nameSpan.style.width = '120px';
+        nameSpan.style.overflow = 'hidden';
+        nameSpan.style.textOverflow = 'ellipsis';
+
+        const loginBtn = document.createElement('button');
+        loginBtn.textContent = 'Login';
+        loginBtn.style.marginLeft = '6px';
+        loginBtn.addEventListener('click', () => {
+            loginWithToken(acct.token);
+        });
+
+        const copyBtn = document.createElement('button');
+        copyBtn.textContent = 'Copy';
+        copyBtn.style.marginLeft = '6px';
+        copyBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(acct.token).then(() => {
+                showNotification('Token Copied To Clipboard!', 'success');
+            }).catch(() => {
+                showNotification('Failed To Copy Token!', 'error');
+            });
+        });
+
+        const delBtn = document.createElement('button');
+        delBtn.textContent = 'Delete';
+        delBtn.style.marginLeft = '6px';
+        delBtn.addEventListener('click', () => {
+            chrome.storage.local.get(['accounts'], (result) => {
+                const updated = (result.accounts || []).filter(a => a.id !== acct.id);
+                chrome.storage.local.set({ accounts: updated }, () => {
+                    loadAccounts();
+                    showNotification('Account Deleted', 'success');
+                });
+            });
+        });
+
+        li.appendChild(nameSpan);
+        li.appendChild(loginBtn);
+        li.appendChild(copyBtn);
+        li.appendChild(delBtn);
+
+        list.appendChild(li);
+    });
+}
+
+document.getElementById('save-account-btn').addEventListener('click', () => {
+    const token = document.getElementById('login-token').value;
+    const name = document.getElementById('account-name').value || '';
+    if (!token) {
+        showNotification('Please enter a token to save!', 'error');
+        return;
+    }
+    chrome.storage.local.get(['accounts'], (result) => {
+        const accounts = result.accounts || [];
+        const newAccount = { id: Date.now(), name: name, token: token };
+        accounts.push(newAccount);
+        chrome.storage.local.set({ accounts: accounts }, () => {
+            loadAccounts();
+            showNotification('Account Saved', 'success');
+        });
+    });
+});
+
+async function loginWithToken(token) {
+    if (!token) {
+        showNotification('Token is empty', 'error');
+        return;
+    }
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || !tab.url.includes('discord.com')) {
+        showNotification('This Script Only Works On discord.com', 'error');
+        return;
+    }
+    chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: (token) => {
+            try {
+                window.webpackChunkdiscord_app.push([
+                    [Symbol()],
+                    {},
+                    req => {
+                        if (!req.c) return;
+                        for (let m of Object.values(req.c)) {
+                            try {
+                                if (!m.exports || m.exports === window) continue;
+                                if (m.exports?.setToken) {
+                                    m.exports.setToken(token);
+                                    return;
+                                }
+                                for (let ex in m.exports) {
+                                    if (m.exports?.[ex]?.setToken) {
+                                        m.exports[ex].setToken(token);
+                                        return;
+                                    }
+                                }
+                            } catch {}
+                        }
+                    },
+                ]);
+                window.webpackChunkdiscord_app.pop();
+                localStorage.setItem('token', JSON.stringify(token));
+                location.reload();
+            } catch (error) {
+                try { localStorage.setItem('token', JSON.stringify(token)); location.reload(); } catch {}
+            }
+        },
+        args: [token],
+    }, () => {
+        showNotification('Logged In With Token!', 'success');
+    });
+}
+
+// initialize accounts list on popup open
+loadAccounts();
+
 document.getElementById('get-token-tab').addEventListener('click', () => {
     document.getElementById('get-token-content').classList.add('active');
     document.getElementById('login-content').classList.remove('active');
+    const accountsContent = document.getElementById('accounts-content');
+    if (accountsContent) accountsContent.classList.remove('active');
     document.getElementById('get-token-tab').classList.add('active');
     document.getElementById('login-tab').classList.remove('active');
+    const accountsTab = document.getElementById('accounts-tab'); if (accountsTab) accountsTab.classList.remove('active');
 });
 
 document.getElementById('login-tab').addEventListener('click', () => {
     document.getElementById('login-content').classList.add('active');
     document.getElementById('get-token-content').classList.remove('active');
+    const accountsContent = document.getElementById('accounts-content');
+    if (accountsContent) accountsContent.classList.remove('active');
     document.getElementById('login-tab').classList.add('active');
+    document.getElementById('get-token-tab').classList.remove('active');
+    const accountsTab = document.getElementById('accounts-tab'); if (accountsTab) accountsTab.classList.remove('active');
+});
+
+document.getElementById('accounts-tab').addEventListener('click', () => {
+    document.getElementById('accounts-content').classList.add('active');
+    document.getElementById('login-content').classList.remove('active');
+    document.getElementById('get-token-content').classList.remove('active');
+    document.getElementById('accounts-tab').classList.add('active');
+    document.getElementById('login-tab').classList.remove('active');
     document.getElementById('get-token-tab').classList.remove('active');
 });
