@@ -322,7 +322,7 @@ function updateAccountInfoInStorage(id, info) { chrome.storage.local.get(['accou
 
 document.getElementById('save-account-btn').addEventListener('click', () => {
     const token = document.getElementById('login-token').value;
-    const name = document.getElementById('account-name').value || '';
+    const name = '';
     if (!token) {
         showNotification('Please enter a token to save!', 'error');
         return;
