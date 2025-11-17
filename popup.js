@@ -38,6 +38,37 @@ const translations = {
 let currentLang = 'en';
 function t(key) { return (translations[currentLang] && translations[currentLang][key]) || translations['en'][key] || key; }
 
+// --- Crypto helpers for encrypting tokens ---
+async function deriveKey(password, saltBase64) {
+    const enc = new TextEncoder();
+    const salt = saltBase64 ? Uint8Array.from(atob(saltBase64), c => c.charCodeAt(0)) : crypto.getRandomValues(new Uint8Array(16));
+    const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), { name: 'PBKDF2' }, false, ['deriveKey']);
+    const key = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt: salt, iterations: 100000, hash: 'SHA-256' }, keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+    return { key, saltBase64: btoa(String.fromCharCode(...salt)) };
+}
+
+async function encryptString(password, plain) {
+    const enc = new TextEncoder();
+    const { key, saltBase64 } = await deriveKey(password);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, enc.encode(plain));
+    return { cipher: btoa(String.fromCharCode(...new Uint8Array(ct))), iv: btoa(String.fromCharCode(...iv)), salt: saltBase64 };
+}
+
+async function decryptString(password, encrypted) {
+    try {
+        const dec = new TextDecoder();
+        const saltBytes = Uint8Array.from(atob(encrypted.salt), c => c.charCodeAt(0));
+        const iv = Uint8Array.from(atob(encrypted.iv), c => c.charCodeAt(0));
+        const cipherBytes = Uint8Array.from(atob(encrypted.cipher), c => c.charCodeAt(0));
+        const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), { name: 'PBKDF2' }, false, ['deriveKey']);
+        const key = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt: saltBytes, iterations: 100000, hash: 'SHA-256' }, keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+        const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, key, cipherBytes);
+        return dec.decode(plain);
+    } catch (e) {
+        return null;
+    }
+}
 function loadLanguage() {
     chrome.storage.local.get(['lang'], (res) => {
         currentLang = res.lang || 'en';
@@ -176,9 +207,17 @@ document.getElementById('save-token-btn').addEventListener('click', async () => 
         showNotification(t('failedToRetrieve'), 'error');
         return;
     }
+    // Ask the user for a master password to encrypt this token (optional)
+    const pwd = prompt('Enter a master password to encrypt this token (leave empty to store unencrypted):');
     chrome.storage.local.get(['accounts'], async (result) => {
         const accounts = result.accounts || [];
-        const newAccount = { id: Date.now(), name: '', token: token, autoLogin: false };
+        const newAccount = { id: Date.now(), name: '', autoLogin: false };
+        if (pwd) {
+            const enc = await encryptString(pwd, token);
+            newAccount.tokenEncrypted = enc;
+        } else {
+            newAccount.token = token;
+        }
         accounts.push(newAccount);
         chrome.storage.local.set({ accounts: accounts }, async () => {
             // try to fetch username/avatar and update
@@ -269,15 +308,22 @@ function renderAccounts(accounts) {
             loginBtn.textContent = 'Login';
             loginBtn.style.padding = '6px 8px';
             loginBtn.style.fontSize = '12px';
-            loginBtn.style.width = 'auto';
-            loginBtn.addEventListener('click', () => loginWithToken(acct.token));
+            loginBtn.style.width = '76px';
+            loginBtn.addEventListener('click', async () => {
+                const tk = await resolveAccountTokenForUse(acct);
+                if (tk) loginWithToken(tk);
+            });
 
             const copyBtn = document.createElement('button');
             copyBtn.textContent = 'Copy';
             copyBtn.style.padding = '6px 8px';
             copyBtn.style.fontSize = '12px';
-            copyBtn.style.width = 'auto';
-            copyBtn.addEventListener('click', () => { navigator.clipboard.writeText(acct.token).then(() => showNotification(t('tokenCopied'), 'success')).catch(() => showNotification(t('failedToCopy'), 'error')); });
+            copyBtn.style.width = '76px';
+            copyBtn.addEventListener('click', async () => {
+                const tk = await resolveAccountTokenForUse(acct);
+                if (!tk) return;
+                navigator.clipboard.writeText(tk).then(() => showNotification('Token Copied To Clipboard!', 'success')).catch(() => showNotification('Failed To Copy Token!', 'error'));
+            });
 
             btns.appendChild(loginBtn);
             btns.appendChild(copyBtn);
@@ -286,10 +332,32 @@ function renderAccounts(accounts) {
             delBtn.textContent = 'Delete';
             delBtn.style.padding = '6px 8px';
             delBtn.style.fontSize = '12px';
-            delBtn.style.width = 'auto';
+            delBtn.style.width = '76px';
             delBtn.addEventListener('click', () => { chrome.storage.local.get(['accounts'], (result) => { const updated = (result.accounts || []).filter(a => a.id !== acct.id); chrome.storage.local.set({ accounts: updated }, () => { loadAccounts(); showNotification('Account Deleted', 'success'); }); }); });
 
             btns.appendChild(delBtn);
+
+            // refresh user info button
+            const refreshBtn = document.createElement('button');
+            refreshBtn.textContent = '⟳';
+            refreshBtn.title = 'Refresh user info';
+            refreshBtn.style.padding = '6px 6px';
+            refreshBtn.style.fontSize = '12px';
+            refreshBtn.style.width = '36px';
+            refreshBtn.addEventListener('click', async () => {
+                const tk = await resolveAccountTokenForUse(acct);
+                if (!tk) { showNotification('Cannot refresh: no token available or decryption failed', 'error'); return; }
+                const info = await fetchUserInfoFromTab(tk);
+                if (info) {
+                    updateAccountInfoInStorage(acct.id, { name: info.username, username: info.username, userId: info.userId, avatar: info.avatar, avatarUrl: info.avatarUrl });
+                    loadAccounts();
+                    showNotification('User info refreshed', 'success');
+                } else {
+                    showNotification('Failed to fetch user info', 'error');
+                }
+            });
+
+            btns.appendChild(refreshBtn);
 
             const autoCheckbox = document.createElement('input');
             autoCheckbox.type = 'checkbox';
@@ -327,6 +395,20 @@ function fetchUserInfoFromTab(token) {
 
 function updateAccountInfoInStorage(id, info) { chrome.storage.local.get(['accounts'], (result) => { const accounts = result.accounts || []; const updated = accounts.map(a => a.id === id ? { ...a, ...info } : a); chrome.storage.local.set({ accounts: updated }, () => {}); }); }
 
+// Resolve an account's token for usage (decrypt if necessary). Prompts user for password if needed.
+async function resolveAccountTokenForUse(acct) {
+    if (!acct) return null;
+    if (acct.token) return acct.token;
+    if (acct.tokenEncrypted) {
+        const pwd = prompt('Enter master password to decrypt this token:');
+        if (!pwd) return null;
+        const dec = await decryptString(pwd, acct.tokenEncrypted);
+        if (!dec) { showNotification('Failed to decrypt token (wrong password?)', 'error'); return null; }
+        return dec;
+    }
+    return null;
+}
+
 document.getElementById('save-account-btn').addEventListener('click', () => {
     const token = document.getElementById('login-token').value;
     const name = '';
@@ -334,19 +416,28 @@ document.getElementById('save-account-btn').addEventListener('click', () => {
         showNotification('Please enter a token to save!', 'error');
         return;
     }
+    const pwd = prompt('Enter a master password to encrypt this token (leave empty to store unencrypted):');
     chrome.storage.local.get(['accounts'], (result) => {
         const accounts = result.accounts || [];
-        const newAccount = { id: Date.now(), name: name, token: token, autoLogin: false };
-        accounts.push(newAccount);
-        chrome.storage.local.set({ accounts: accounts }, async () => {
-            // try to fetch username/avatar and update the saved account
-            const info = await fetchUserInfoFromTab(token);
-            if (info) {
-                updateAccountInfoInStorage(newAccount.id, { name: info.username || name, username: info.username, userId: info.userId, avatar: info.avatar, avatarUrl: info.avatarUrl });
+        const newAccount = { id: Date.now(), name: name, autoLogin: false };
+        (async () => {
+            if (pwd) {
+                const enc = await encryptString(pwd, token);
+                newAccount.tokenEncrypted = enc;
+            } else {
+                newAccount.token = token;
             }
-            loadAccounts();
-            showNotification('Account Saved', 'success');
-        });
+            accounts.push(newAccount);
+            chrome.storage.local.set({ accounts: accounts }, async () => {
+                // try to fetch username/avatar and update the saved account
+                const info = await fetchUserInfoFromTab(token);
+                if (info) {
+                    updateAccountInfoInStorage(newAccount.id, { name: info.username || name, username: info.username, userId: info.userId, avatar: info.avatar, avatarUrl: info.avatarUrl });
+                }
+                loadAccounts();
+                showNotification('Account Saved', 'success');
+            });
+        })();
     });
 });
 
@@ -412,7 +503,17 @@ function tryAutoLogin() {
         chrome.tabs.query({}, (tabs) => {
             const discordTab = tabs.find(t => t.url && t.url.includes('discord.com'));
             if (discordTab) {
-                loginWithToken(auto.token);
+                // if token is encrypted, prompt for password first
+                (async () => {
+                    let tk = auto.token || null;
+                    if (!tk && auto.tokenEncrypted) {
+                        const pwd = prompt('Auto-login: enter master password to decrypt token:');
+                        if (!pwd) { showNotification('Auto-login cancelled', 'error'); return; }
+                        tk = await decryptString(pwd, auto.tokenEncrypted);
+                        if (!tk) { showNotification('Failed to decrypt token for auto-login', 'error'); return; }
+                    }
+                    if (tk) loginWithToken(tk);
+                })();
             }
         });
     });
