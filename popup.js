@@ -263,6 +263,8 @@ function renderAccounts(accounts) {
             btns.style.flexDirection = 'column';
             btns.style.gap = '4px';
 
+            
+
             const loginBtn = document.createElement('button');
             loginBtn.textContent = 'Login';
             loginBtn.style.padding = '6px 8px';
@@ -280,8 +282,11 @@ function renderAccounts(accounts) {
 
             const delBtn = document.createElement('button');
             delBtn.textContent = 'Delete';
-            delBtn.style.marginLeft = '6px';
+            delBtn.style.padding = '6px 8px';
+            delBtn.style.fontSize = '12px';
             delBtn.addEventListener('click', () => { chrome.storage.local.get(['accounts'], (result) => { const updated = (result.accounts || []).filter(a => a.id !== acct.id); chrome.storage.local.set({ accounts: updated }, () => { loadAccounts(); showNotification('Account Deleted', 'success'); }); }); });
+
+            btns.appendChild(delBtn);
 
             const autoCheckbox = document.createElement('input');
             autoCheckbox.type = 'checkbox';
@@ -297,11 +302,10 @@ function renderAccounts(accounts) {
                 });
             });
 
-            // Order: ICON | NAME | vertical buttons | DELETE | AUTO
+            // Order: ICON | NAME | vertical buttons | AUTO
             li.appendChild(avatar);
             li.appendChild(nameSpan);
             li.appendChild(btns);
-            li.appendChild(delBtn);
             li.appendChild(autoCheckbox);
         list.appendChild(li);
     });
