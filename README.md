@@ -52,5 +52,30 @@ Follow these steps to load the extension into your browser:
    - Get Token
 3. Follow on-screen instructions for the selected operation.
 
+### Save Token (New)
+- In the `Get Token` tab, after retrieving a token, click the `Save Token` button to store the token in the extension's saved accounts list.
+- The extension will attempt to fetch the username and avatar from an open `discord.com` tab and save them alongside the token.
+- Saved accounts appear in the `Saved Accounts` tab where you can `Login`, `Copy`, or `Delete` each saved account.
+
+### Language Support
+- This extension includes a language selector (top-right) supporting English and Japanese. Switch the language to translate UI strings.
+
+---
+
+## 使い方（日本語）
+1. ブラウザのツールバーから拡張機能アイコンをクリックして開きます。
+2. 次の操作から選択します:
+   - Login With Token（トークンでログイン）
+   - Get Token（トークンを取得）
+3. 画面の指示に従ってください。
+
+### トークン保存機能（新機能）
+- `Get Token` タブでトークンを取得した後、`Save Token` を押すと拡張の保存アカウントに登録されます。
+- 開いている `discord.com` タブがあれば、ユーザー名とアバターを取得して一緒に保存します。
+- `Saved Accounts` タブで保存済みアカウントを確認でき、`Login` / `Copy` / `Delete` が可能です。
+
+### 言語サポート
+- UI の右上にある言語セレクタで英語と日本語を切り替えられます。
+
 ## Disclaimer
 This extension is for educational and personal use only. Unauthorized use of Discord tokens may violate Discord’s terms of service. The author is not responsible for any misuse of this tool.

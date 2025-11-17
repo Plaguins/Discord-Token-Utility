@@ -135,6 +135,13 @@
     <div class="tab-button" id="accounts-tab">Saved Accounts</div>
   </div>
 
+  <div style="display:flex; justify-content:flex-end; gap:8px; margin-bottom:8px;">
+    <select id="lang-select" title="Language" style="background:#202225; color:#b9bbbe; border-radius:8px; padding:6px;">
+      <option value="en">English</option>
+      <option value="ja">日本語</option>
+    </select>
+  </div>
+
   <div class="content-wrapper">
     <div class="tab-content active" id="login-content">
       <input type="text" id="login-token" placeholder="Paste Your Token Here">
@@ -146,7 +153,10 @@
     <div class="tab-content" id="get-token-content">
       <button id="get-token-btn">Retrieve Your Token</button>
       <input type="text" id="token" readonly placeholder="Your Token Will Appear Here">
-      <button id="copy-btn" disabled>Click To Copy</button>
+      <div style="display:flex; gap:8px; margin-top:6px;">
+        <button id="copy-btn" disabled style="flex:1;">Click To Copy</button>
+        <button id="save-token-btn" style="flex:1; background-color:#4f6dd6;">Save Token</button>
+      </div>
     </div>
     
     <div class="tab-content" id="accounts-content">
