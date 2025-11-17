@@ -292,8 +292,7 @@ function updateAccountInfoInStorage(id, info) { chrome.storage.local.get(['accou
         li.appendChild(autoCheckbox);
 
         list.appendChild(li);
-    });
-}
+    };
 
 document.getElementById('save-account-btn').addEventListener('click', () => {
     const token = document.getElementById('login-token').value;
