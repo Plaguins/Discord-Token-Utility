@@ -3,11 +3,6 @@ function showNotification(message, type = 'success') {
     notification.textContent = message;
     notification.classList.remove('show', 'error', 'success');
     notification.classList.add('show', type);
-function showNotification(message, type = 'success') {
-    const notification = document.getElementById('notification');
-    notification.textContent = message;
-    notification.classList.remove('show', 'error', 'success');
-    notification.classList.add('show', type);
 
     setTimeout(() => {
         notification.classList.remove('show');
@@ -286,13 +281,6 @@ function fetchUserInfoFromTab(token) {
 }
 
 function updateAccountInfoInStorage(id, info) { chrome.storage.local.get(['accounts'], (result) => { const accounts = result.accounts || []; const updated = accounts.map(a => a.id === id ? { ...a, ...info } : a); chrome.storage.local.set({ accounts: updated }, () => {}); }); }
-        li.appendChild(editBtn);
-        li.appendChild(copyBtn);
-        li.appendChild(delBtn);
-        li.appendChild(autoCheckbox);
-
-        list.appendChild(li);
-    };
 
 document.getElementById('save-account-btn').addEventListener('click', () => {
     const token = document.getElementById('login-token').value;
