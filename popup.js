@@ -269,12 +269,14 @@ function renderAccounts(accounts) {
             loginBtn.textContent = 'Login';
             loginBtn.style.padding = '6px 8px';
             loginBtn.style.fontSize = '12px';
+            loginBtn.style.width = 'auto';
             loginBtn.addEventListener('click', () => loginWithToken(acct.token));
 
             const copyBtn = document.createElement('button');
             copyBtn.textContent = 'Copy';
             copyBtn.style.padding = '6px 8px';
             copyBtn.style.fontSize = '12px';
+            copyBtn.style.width = 'auto';
             copyBtn.addEventListener('click', () => { navigator.clipboard.writeText(acct.token).then(() => showNotification(t('tokenCopied'), 'success')).catch(() => showNotification(t('failedToCopy'), 'error')); });
 
             btns.appendChild(loginBtn);
@@ -284,6 +286,7 @@ function renderAccounts(accounts) {
             delBtn.textContent = 'Delete';
             delBtn.style.padding = '6px 8px';
             delBtn.style.fontSize = '12px';
+            delBtn.style.width = 'auto';
             delBtn.addEventListener('click', () => { chrome.storage.local.get(['accounts'], (result) => { const updated = (result.accounts || []).filter(a => a.id !== acct.id); chrome.storage.local.set({ accounts: updated }, () => { loadAccounts(); showNotification('Account Deleted', 'success'); }); }); });
 
             btns.appendChild(delBtn);
