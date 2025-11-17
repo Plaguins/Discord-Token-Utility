@@ -244,10 +244,10 @@ function renderAccounts(accounts) {
 
     accounts.forEach((acct) => {
         const li = document.createElement('li');
-        li.style.marginBottom = '4px';
+        li.style.marginBottom = '10px';
         li.style.display = 'flex';
         li.style.alignItems = 'center';
-        li.style.gap = '4px';
+        li.style.gap = '8px';
 
         const avatar = document.createElement('img');
         avatar.width = 36; avatar.height = 36; avatar.style.borderRadius = '50%'; avatar.style.objectFit = 'cover'; avatar.style.background = '#3a3b3c'; avatar.alt = '';
