@@ -244,10 +244,10 @@ function renderAccounts(accounts) {
 
     accounts.forEach((acct) => {
         const li = document.createElement('li');
-        li.style.marginBottom = '10px';
+        li.style.marginBottom = '4px';
         li.style.display = 'flex';
         li.style.alignItems = 'center';
-        li.style.gap = '8px';
+        li.style.gap = '4px';
 
         const avatar = document.createElement('img');
         avatar.width = 36; avatar.height = 36; avatar.style.borderRadius = '50%'; avatar.style.objectFit = 'cover'; avatar.style.background = '#3a3b3c'; avatar.alt = '';
@@ -261,7 +261,7 @@ function renderAccounts(accounts) {
             const btns = document.createElement('div');
             btns.style.display = 'flex';
             btns.style.flexDirection = 'column';
-            btns.style.gap = '4px';
+            btns.style.gap = '2px';
 
             
 
