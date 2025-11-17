@@ -255,16 +255,54 @@ function renderAccounts(accounts) {
         else if (acct.userId && acct.avatar) avatar.src = `https://cdn.discordapp.com/avatars/${acct.userId}/${acct.avatar}.png?size=64`;
         else avatar.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36"><rect width="100%" height="100%" fill="%2336363f"/></svg>';
 
-        const btns = document.createElement('div'); btns.style.display = 'flex'; btns.style.flexDirection = 'column'; btns.style.gap = '4px';
-        const loginBtn = document.createElement('button'); loginBtn.textContent = 'Login'; loginBtn.style.padding = '6px 8px'; loginBtn.style.fontSize = '12px'; loginBtn.addEventListener('click', () => loginWithToken(acct.token));
-        const copyBtn = document.createElement('button'); copyBtn.textContent = 'Copy'; copyBtn.style.padding = '6px 8px'; copyBtn.style.fontSize = '12px'; copyBtn.addEventListener('click', () => { navigator.clipboard.writeText(acct.token).then(() => showNotification('Token Copied To Clipboard!', 'success')).catch(() => showNotification('Failed To Copy Token!', 'error')); });
-        btns.appendChild(loginBtn); btns.appendChild(copyBtn);
+            const nameSpan = document.createElement('div'); nameSpan.textContent = acct.name || acct.username || '(no name)'; nameSpan.style.color = '#fff'; nameSpan.style.flex = '1'; nameSpan.style.textAlign = 'left'; nameSpan.style.padding = '4px 8px'; nameSpan.style.overflow = 'hidden'; nameSpan.style.textOverflow = 'ellipsis';
 
-        const nameSpan = document.createElement('div'); nameSpan.textContent = acct.name || acct.username || '(no name)'; nameSpan.style.color = '#fff'; nameSpan.style.flex = '1'; nameSpan.style.textAlign = 'left'; nameSpan.style.padding = '4px 8px'; nameSpan.style.overflow = 'hidden'; nameSpan.style.textOverflow = 'ellipsis';
+            // vertical action buttons: Login, Copy
+            const btns = document.createElement('div');
+            btns.style.display = 'flex';
+            btns.style.flexDirection = 'column';
+            btns.style.gap = '4px';
 
-        const delBtn = document.createElement('button'); delBtn.textContent = 'Delete'; delBtn.style.marginLeft = '6px'; delBtn.addEventListener('click', () => { chrome.storage.local.get(['accounts'], (result) => { const updated = (result.accounts || []).filter(a => a.id !== acct.id); chrome.storage.local.set({ accounts: updated }, () => { loadAccounts(); showNotification('Account Deleted', 'success'); }); }); });
+            const loginBtn = document.createElement('button');
+            loginBtn.textContent = 'Login';
+            loginBtn.style.padding = '6px 8px';
+            loginBtn.style.fontSize = '12px';
+            loginBtn.addEventListener('click', () => loginWithToken(acct.token));
 
-        li.appendChild(avatar); li.appendChild(btns); li.appendChild(nameSpan); li.appendChild(delBtn);
+            const copyBtn = document.createElement('button');
+            copyBtn.textContent = 'Copy';
+            copyBtn.style.padding = '6px 8px';
+            copyBtn.style.fontSize = '12px';
+            copyBtn.addEventListener('click', () => { navigator.clipboard.writeText(acct.token).then(() => showNotification(t('tokenCopied'), 'success')).catch(() => showNotification(t('failedToCopy'), 'error')); });
+
+            btns.appendChild(loginBtn);
+            btns.appendChild(copyBtn);
+
+            const delBtn = document.createElement('button');
+            delBtn.textContent = 'Delete';
+            delBtn.style.marginLeft = '6px';
+            delBtn.addEventListener('click', () => { chrome.storage.local.get(['accounts'], (result) => { const updated = (result.accounts || []).filter(a => a.id !== acct.id); chrome.storage.local.set({ accounts: updated }, () => { loadAccounts(); showNotification('Account Deleted', 'success'); }); }); });
+
+            const autoCheckbox = document.createElement('input');
+            autoCheckbox.type = 'checkbox';
+            autoCheckbox.checked = !!acct.autoLogin;
+            autoCheckbox.title = 'Auto-login this account when a Discord tab is available';
+            autoCheckbox.style.marginLeft = '8px';
+            autoCheckbox.addEventListener('change', () => {
+                chrome.storage.local.get(['accounts'], (result) => {
+                    const updated = (result.accounts || []).map(a => a.id === acct.id ? { ...a, autoLogin: autoCheckbox.checked } : a);
+                    chrome.storage.local.set({ accounts: updated }, () => {
+                        showNotification('Auto-login setting updated', 'success');
+                    });
+                });
+            });
+
+            // Order: ICON | NAME | vertical buttons | DELETE | AUTO
+            li.appendChild(avatar);
+            li.appendChild(nameSpan);
+            li.appendChild(btns);
+            li.appendChild(delBtn);
+            li.appendChild(autoCheckbox);
         list.appendChild(li);
     });
 }
